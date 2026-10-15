@@ -28,7 +28,8 @@ for (const file of files) {
   if (file === "manifest.webmanifest") assert.match(response.headers.get("content-type") || "", /application\/(manifest\+json|json)/);
   if (file === "sw.js") {
     assert.match(response.headers.get("content-type") || "", /(java|ecma)script/);
-    assert.match(response.headers.get("cache-control") || "", /no-cache|no-store/);
+    const policy = response.headers.get("cache-control") || "";
+    assert.ok(/no-cache|no-store/.test(policy) || (/\bmax-age=0\b/.test(policy) && /\bmust-revalidate\b/.test(policy)), "The service-worker script must be revalidated before reuse");
   }
   console.log(`PASS /${file} matches local SHA-256`);
 }
