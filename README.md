@@ -37,12 +37,14 @@ The canonical working repository is `E:\Coding\Inversion`, with GitHub remote `h
 ## Using the studio
 
 1. Sign in on the PC and choose the session.
-2. Connect phone; scan the QR and sign in with the same ChatGPT account.
-3. Choose the medium, take a photo, check framing, and confirm upload.
+2. Open the app on your phone and sign in with the same ChatGPT account. The PC's **Connect phone** QR is an optional shortcut.
+3. Tap **Camera** in the phone's bottom navigation to open the camera directly. Check framing and confirm upload. Use the capture screen's medium selector for quill or other handwriting.
 4. Keep the phone or PC workspace open while transcription jobs process.
 5. Review text, mark verified, add an excerpt and record permission, then save.
 6. Approve the saved excerpt separately. Edits or withdrawals invalidate the active presentation snapshot.
 7. Suggest/edit/save groups. Freeze the presentation, open it, and download an offline copy.
+
+Mobile navigation keeps Responses, Camera, and Themes available on every screen. Themes also has an explicit **Back to responses** button on all screen sizes. Leaving an unsaved review or theme draft asks whether to keep editing or discard it. The camera opens in the tap event, without a QR or pairing step on the phone; the browser and device determine whether the image picker launches the rear camera or offers a camera choice.
 
 Hosted capture and AI require internet. Browser queues are best effort, and closed-app/background uploads are not guaranteed. Keep originals until upload is acknowledged. Downloaded presentations contain only the approved display payload; removing approval cannot revoke copies already downloaded.
 
