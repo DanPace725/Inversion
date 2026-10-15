@@ -26,9 +26,9 @@ New service-worker versions wait rather than forcing reloads. An explicit update
 
 PWA checks: `node --test tests/pwa.test.mjs` validates manifest/icon dimensions, the public-only cache, API/auth exclusions, redirect-poisoning protection, fallback behavior, and update activation scope.
 
-Sites serves `offline.html` at the clean URL `/offline`. The worker accepts that single same-origin redirect only when the returned body matches the generic offline page's SHA-256. After editing `public/offline.html`, run `node scripts/update-offline-hash.mjs` before testing/building.
+Sites rewrites HTML URLs/bodies. The worker therefore embeds the generic offline page directly and never fetches or caches HTML from the host. After editing `public/offline.html`, run `node scripts/generate-offline-page.mjs` before testing/building.
 
-The local browser offline-launch check passed with the preview server stopped. Native phone installation/reopening still needs device acceptance. `scripts/check-pwa-assets.mjs` accepts the Site URL and optional service-access token through hidden stdin, verifies all eight deployed PWA resources against local SHA-256 hashes, and checks anonymous API privacy.
+The local browser offline-launch check passed with the preview server stopped. Native phone installation/reopening still needs device acceptance. `scripts/check-pwa-assets.mjs` accepts the Site URL and optional service-access token through hidden stdin, verifies seven deployed PWA resources against local SHA-256 hashes, checks the embedded offline page, and checks anonymous API privacy.
 
 ## Source and hosting
 

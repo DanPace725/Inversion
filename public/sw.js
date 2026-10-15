@@ -1,37 +1,30 @@
 /* Only generic, explicitly listed resources enter this cache. Never cache an account page or API response. */
-const CACHE_NAME = "inversion-public-v2";
-const OFFLINE_SHA256 = "bccfb535de27e687bbc5530d7bdaf8d77f95abce8e28f6309dd38b8c7dec2d60";
+const CACHE_NAME = "inversion-public-v3";
+const OFFLINE_HTML = "<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n  <meta name=\"theme-color\" content=\"#35364b\">\n  <meta name=\"apple-mobile-web-app-capable\" content=\"yes\">\n  <meta name=\"apple-mobile-web-app-title\" content=\"Inversion\">\n  <link rel=\"manifest\" href=\"/manifest.webmanifest\" crossorigin=\"use-credentials\">\n  <link rel=\"apple-touch-icon\" href=\"/icons/apple-touch-icon.png\">\n  <link rel=\"stylesheet\" href=\"/offline.css\">\n  <title>Inversion · Reconnect</title>\n</head>\n<body>\n  <main>\n    <img src=\"/icons/icon-192.png\" width=\"70\" height=\"70\" alt=\"Inversion\">\n    <p class=\"eyebrow\">REFLECTION STUDIO</p>\n    <h1>A moment to reconnect.</h1>\n    <p>Connect to the internet to reopen your private workspace and continue uploading or transcribing.</p>\n    <aside>If you saved photos in the app, leave this device's browser data intact. Reopen the workspace with the same account to retry pending uploads. Keep the originals until receipt is confirmed.</aside>\n    <a href=\"/\">Try opening the workspace</a>\n    <p class=\"footnote\">You can still use a presentation you previously downloaded. New capture, review, and AI processing require the workspace to be open.</p>\n  </main>\n</body>\n</html>\n";
 const PUBLIC_ASSETS = new Map([
-  ["/offline.html", "text/html"],
   ["/offline.css", "text/css"],
   ["/icons/icon-192.png", "image/png"],
   ["/icons/icon-512.png", "image/png"],
   ["/icons/icon-maskable-512.png", "image/png"],
   ["/icons/apple-touch-icon.png", "image/png"],
 ]);
-async function mayCache(pathname, response) {
-  if (!response.ok || !response.url) return false;
+function mayCache(pathname, response) {
+  if (!response.ok || response.redirected || !response.url) return false;
   const actual = new URL(response.url);
-  const cleanOffline = pathname === "/offline.html" && actual.pathname === "/offline";
-  if (actual.origin !== self.location.origin || (actual.pathname !== pathname && !cleanOffline) || actual.search ||
-      (response.redirected && !cleanOffline) || (response.headers.get("content-type") || "").split(";")[0] !== PUBLIC_ASSETS.get(pathname)) return false;
-  if (pathname === "/offline.html") {
-    // The host removes .html from public page URLs. Allow that one alias only
-    // when the body is exactly our generic offline page, never a login page.
-    const bytes = await response.clone().arrayBuffer();
-    const digest = [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))].map(b => b.toString(16).padStart(2, "0")).join("");
-    return digest === OFFLINE_SHA256;
-  }
-  return true;
+  return actual.origin === self.location.origin && actual.pathname === pathname && !actual.search &&
+    (response.headers.get("content-type") || "").split(";")[0] === PUBLIC_ASSETS.get(pathname);
 }
 self.addEventListener("install", event => {
   event.waitUntil((async () => {
-    const cache = await caches.open(CACHE_NAME);
-    for (const [pathname] of PUBLIC_ASSETS) {
+    const resources = await Promise.all([...PUBLIC_ASSETS.keys()].map(async pathname => {
       const response = await fetch(pathname, { cache: "reload", credentials: "same-origin" });
-      if (!(await mayCache(pathname, response))) throw new Error("The offline resources could not be safely cached.");
-      await cache.put(pathname, response);
-    }
+      if (!mayCache(pathname, response)) throw new Error("The offline resources could not be safely cached.");
+      return [pathname, response];
+    }));
+    const cache = await caches.open(CACHE_NAME);
+    // Never fetch/cache HTML from the host: it rewrites .html URLs and bodies.
+    await cache.put("/offline.html", new Response(OFFLINE_HTML, { headers: { "Content-Type": "text/html;charset=utf-8" } }));
+    for (const [pathname, response] of resources) await cache.put(pathname, response);
     // Updates wait for the app to close or for an explicit update request.
     // Do not force a reload while photos or review edits may be unsaved.
   })());
@@ -63,7 +56,7 @@ self.addEventListener("fetch", event => {
       const cache = await caches.open(CACHE_NAME), saved = await cache.match(url.pathname);
       if (saved) return saved;
       const response = await fetch(request);
-      if (await mayCache(url.pathname, response)) await cache.put(url.pathname, response.clone());
+      if (mayCache(url.pathname, response)) await cache.put(url.pathname, response.clone());
       return response;
     })());
   }

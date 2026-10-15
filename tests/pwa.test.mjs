@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import fs from "node:fs/promises";
 import vm from "node:vm";
-import { webcrypto, createHash } from "node:crypto";
 
 const script = await fs.readFile(new URL("../public/sw.js", import.meta.url), "utf8");
 const offlineHtml = await fs.readFile(new URL("../public/offline.html", import.meta.url), "utf8");
@@ -33,7 +32,7 @@ function worker() {
     return response(path, path === "/offline.html" ? offlineHtml : path === "/" ? "PRIVATE RESPONSE DATA" : "generic public asset", path.endsWith(".png") ? "image/png" : path.endsWith(".css") ? "text/css" : "text/html");
   };
   const self = { location: { origin }, addEventListener: (name, listener) => listeners.set(name, listener), clients: { claim: async () => claims++ }, skipWaiting: async () => skipWaiting++ };
-  vm.runInNewContext(script, { self, caches, fetch, URL, Response, Map, crypto: webcrypto });
+  vm.runInNewContext(script, { self, caches, fetch, URL, Response, Map });
   return {
     stores, deleted, offline: value => offline = value, authRedirect: value => authRedirect = value,
     stats: () => ({ skipWaiting, claims }),
@@ -61,7 +60,7 @@ test("manifest provides standalone launch, capture shortcut, and required icons"
 });
 test("installation caches only six generic resources and does not force activation", async () => {
   const w = worker(); await w.event("install");
-  const keys = [...w.stores.get("inversion-public-v2").keys()];
+  const keys = [...w.stores.get("inversion-public-v3").keys()];
   assert.equal(keys.length, 6); assert.ok(!keys.includes("/")); assert.ok(!keys.some(key => key.startsWith("/api/")));
   assert.equal(w.stats().skipWaiting, 0);
 });
@@ -84,18 +83,20 @@ test("offline navigation returns the generic fallback without cached account dat
 test("redirected sign-in pages cannot poison the offline cache", async () => {
   const w = worker(); w.authRedirect(true);
   await assert.rejects(w.event("install"), /safely cached/);
-  assert.equal(w.stores.get("inversion-public-v2").size, 0);
+  assert.equal(w.stores.size, 0);
 });
 test("activation removes only old Inversion public caches", async () => {
   const w = worker(); w.stores.set("inversion-public-v0", new Map()); w.stores.set("another-app", new Map());
   await w.event("install"); await w.event("activate");
   assert.deepEqual(w.deleted, ["inversion-public-v0"]); assert.ok(w.stores.has("another-app")); assert.equal(w.stats().claims, 1);
 });
-test("the host's clean offline URL is accepted only with the exact public page body", async () => {
-  assert.ok(script.includes(createHash("sha256").update(offlineHtml).digest("hex")), "Run node scripts/update-offline-hash.mjs after editing offline.html");
+test("offline HTML is embedded locally and never fetched from a rewriting host", async () => {
+  const match = script.match(/const OFFLINE_HTML = ([^\r\n]+);/);
+  assert.ok(match, "Run node scripts/generate-offline-page.mjs after editing offline.html");
+  assert.equal(JSON.parse(match[1]), offlineHtml);
   const w = worker(); w.cleanRedirect(true); await w.event("install"); w.offline(true);
   assert.equal(await (await w.request("/", { mode: "navigate" })).response.text(), offlineHtml);
   const poisoned = worker(); poisoned.cleanRedirect(true); poisoned.fakeOffline(true);
-  await assert.rejects(poisoned.event("install"), /safely cached/);
-  assert.equal(poisoned.stores.get("inversion-public-v2").size, 0);
+  await poisoned.event("install"); poisoned.offline(true);
+  assert.equal(await (await poisoned.request("/", { mode: "navigate" })).response.text(), offlineHtml);
 });
