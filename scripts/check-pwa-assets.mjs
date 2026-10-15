@@ -20,8 +20,13 @@ assert.equal(url.protocol, "https:");
 const headers = input.token ? { "OAI-Sites-Authorization": `Bearer ${input.token}` } : {};
 const files = ["manifest.webmanifest", "sw.js", "offline.html", "offline.css", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png", "icons/apple-touch-icon.png"];
 for (const file of files) {
-  const response = await fetch(new URL(`/${file}`, url.origin), { headers, redirect: "manual" });
-  assert.equal(response.status, 200, `Could not retrieve /${file}`);
+  let response = await fetch(new URL(`/${file}`, url.origin), { headers, redirect: "manual" });
+  if (file === "offline.html" && [307, 308].includes(response.status) && response.headers.get("location")) {
+    const target = new URL(response.headers.get("location"), url.origin);
+    assert.ok(target.origin === url.origin && target.pathname === "/offline" && !target.search, "Unexpected offline-page redirect");
+    response = await fetch(target, { headers, redirect: "manual" });
+  }
+  assert.equal(response.status, 200, `Could not retrieve /${file}; redirect path: ${response.headers.get("location") ? new URL(response.headers.get("location"),url.origin).pathname : "none"}`);
   const live = Buffer.from(await response.arrayBuffer()), local = await fs.readFile(`public/${file}`);
   const digest = buffer => createHash("sha256").update(buffer).digest("hex");
   assert.equal(digest(live), digest(local), `Published /${file} does not match this checkout`);
