@@ -16,7 +16,23 @@ Private web workbench for the One80 Inversion retreat. Open the same hosted app 
 
 The app starts empty. Test fixtures are synthetic and are not production retreat responses. No student accounts or form builder are included.
 
-## Operation
+## PWA installation
+
+Open the private site in Chrome, Edge, or Safari, sign in, then choose **Install app** in the studio. When a native prompt is unavailable, the button shows browser-specific instructions. The manifest supports standalone launch, branded regular/maskable/Apple icons, and a Capture shortcut. The authenticated manifest link requests credentials so installation works with the private-site boundary.
+
+Offline launch shows a generic reconnect screen. Private responses, photos, authenticated HTML, APIs, and sign-in/OAuth traffic are never stored in the service-worker cache. The existing account-scoped pending-photo queue stays separate in IndexedDB. Keep a connected workspace open to upload and transcribe; background uploads and a full offline dashboard are not promised. Downloaded standalone presentations still work offline.
+
+New service-worker versions wait rather than forcing reloads. An explicit update checks for pending photos and asks you to save review/theme edits before reloading.
+
+PWA checks: `node --test tests/pwa.test.mjs` validates manifest/icon dimensions, the public-only cache, API/auth exclusions, redirect-poisoning protection, fallback behavior, and update activation scope.
+
+The local browser offline-launch check passed with the preview server stopped. Native phone installation/reopening still needs device acceptance. `scripts/check-pwa-assets.mjs` accepts the Site URL and optional service-access token through hidden stdin, verifies all eight deployed PWA resources against local SHA-256 hashes, and checks anonymous API privacy.
+
+## Source and hosting
+
+The canonical working repository is `E:\Coding\Inversion`, with GitHub remote `https://github.com/DanPace725/Inversion.git`. Commit and push app changes there. Sites uses its existing registered source repository as a deployment mirror; it remains the same private Site with the same database, photos, and runtime secret. Hosting credentials, local caches, dependencies, and deployment staging stay ignored under `.sites-runtime/`.
+
+## Using the studio
 
 1. Sign in on the PC and choose the session.
 2. Connect phone; scan the QR and sign in with the same ChatGPT account.
